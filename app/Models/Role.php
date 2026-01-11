@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
+/**
+ * Role Model
+ * Represents user roles (Admin, Customer, Super Admin)
+ */
+class Role extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'display_name',
+        'description',
+    ];
+
+    /**
+     * Get users with this role
+     */
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * Get permissions for this role
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_permission')
+            ->withTimestamps();
+    }
+
+    /**
+     * Check if role has a specific permission
+     */
+    public function hasPermission(string $permissionName): bool
+    {
+        return $this->permissions()->where('name', $permissionName)->exists();
+    }
+}
