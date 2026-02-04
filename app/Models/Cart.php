@@ -55,17 +55,18 @@ class Cart extends Model
     {
         $this->subtotal = $this->items->sum('subtotal');
         
-        // Calculate tax (example: 18% GST)
-        $this->tax = $this->subtotal * 0.18;
+        // No tax - prices are all-inclusive
+        $this->tax = 0;
         
-        // Calculate shipping (example: free above 1000)
-        $this->shipping = $this->subtotal >= 1000 ? 0 : 50;
+        // Shipping is calculated separately based on weight (LKR 500/kg)
+        // Set to 0 here as it will be calculated at checkout
+        $this->shipping = 0;
         
         // Apply coupon discount if exists
         $this->discount = $this->calculateDiscount();
         
-        // Calculate total
-        $this->total = $this->subtotal + $this->tax + $this->shipping - $this->discount;
+        // Calculate total (subtotal minus discount, shipping added at checkout)
+        $this->total = $this->subtotal - $this->discount;
         
         $this->save();
     }

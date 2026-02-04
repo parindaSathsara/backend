@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Admin\AdminReviewController;
 use App\Http\Controllers\Api\Admin\AdminVariationController;
 use App\Http\Controllers\Api\Admin\AdminVariationTypeController;
 use App\Http\Controllers\Api\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\Admin\AdminSettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +60,15 @@ Route::get('/albums/{slug}', [AlbumController::class, 'show']);
 
 Route::get('/banners', [BannerController::class, 'index']);
 
+// Shipping settings (public)
+Route::get('/shipping-settings', function () {
+    return response()->json([
+        'shipping_rate_per_kg' => \App\Models\Setting::get('shipping_rate_per_kg', 500),
+        'free_shipping_threshold' => \App\Models\Setting::get('free_shipping_threshold', 0),
+        'default_weight' => \App\Models\Setting::get('default_weight', 0.5),
+    ]);
+});
+
 // Product reviews (public viewing)
 Route::get('/products/{slug}/reviews', [ReviewController::class, 'index']);
 
@@ -82,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cart/apply-coupon', [CartController::class, 'applyCoupon']);
     Route::delete('/cart/remove-coupon', [CartController::class, 'removeCoupon']);
     Route::delete('/cart/clear', [CartController::class, 'clear']);
+    Route::post('/cart/sync', [CartController::class, 'syncGuestCart']);
 
     // Order management
     Route::get('/orders', [OrderController::class, 'index']);
@@ -200,4 +211,10 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('payments/{payment}/slip', [AdminPaymentController::class, 'viewSlip']);
     Route::post('payments/{payment}/verify', [AdminPaymentController::class, 'verify']);
     Route::post('payments/{payment}/reject', [AdminPaymentController::class, 'reject']);
+
+    // Settings management
+    Route::get('settings', [AdminSettingsController::class, 'index']);
+    Route::get('settings/shipping', [AdminSettingsController::class, 'getShippingSettings']);
+    Route::put('settings/shipping', [AdminSettingsController::class, 'updateShippingSettings']);
+    Route::put('settings/{key}', [AdminSettingsController::class, 'update']);
 });

@@ -238,6 +238,65 @@ class CartController extends Controller
     }
 
     /**
+     * Sync guest cart items to user's cart after login
+     */
+    public function syncGuestCart(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array',
+            'items.*.item_type' => 'required|in:product,album',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.album_id' => 'nullable|exists:albums,id',
+            'items.*.variant_id' => 'nullable|exists:product_variants,id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $cart = $this->getOrCreateCart($request);
+        $addedItems = 0;
+        $errors = [];
+
+        foreach ($request->items as $item) {
+            try {
+                if ($item['item_type'] === 'product' && !empty($item['product_id'])) {
+                    $product = Product::find($item['product_id']);
+                    if ($product && $product->isInStock()) {
+                        $variant = !empty($item['variant_id']) ? ProductVariant::find($item['variant_id']) : null;
+                        $cart->addProduct($product, $variant, $item['quantity']);
+                        $addedItems++;
+                    }
+                } elseif ($item['item_type'] === 'album' && !empty($item['album_id'])) {
+                    $album = Album::find($item['album_id']);
+                    if ($album && $album->isInStock()) {
+                        $cart->addAlbum($album, $item['quantity']);
+                        $addedItems++;
+                    }
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Failed to add item: " . $e->getMessage();
+            }
+        }
+
+        $cart->load([
+            'items.product.primaryImage',
+            'items.variant',
+            'items.album'
+        ]);
+
+        return response()->json([
+            'message' => "Synced {$addedItems} items to cart",
+            'cart' => $cart,
+            'errors' => $errors
+        ]);
+    }
+
+    /**
      * Get or create cart for user
      */
     protected function getOrCreateCart(Request $request)
