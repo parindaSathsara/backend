@@ -24,6 +24,9 @@ class CartController extends Controller
     {
         $cart = $this->getOrCreateCart($request);
         
+        // Recalculate totals to ensure shipping is up to date
+        $cart->calculateTotals();
+        
         $cart->load([
             'items.product.primaryImage',
             'items.product.category',
@@ -32,7 +35,8 @@ class CartController extends Controller
         ]);
 
         return response()->json([
-            'cart' => $cart
+            'cart' => $cart,
+            'shipping_breakdown' => $cart->getShippingBreakdown()
         ]);
     }
 

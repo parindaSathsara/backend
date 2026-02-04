@@ -37,6 +37,10 @@ class AdminVariationController extends Controller
         // Group by variation type for easier frontend consumption
         $grouped = [];
         foreach ($options as $option) {
+            // Skip options with no variation type (orphaned records)
+            if (!$option->variationType) {
+                continue;
+            }
             $typeSlug = $option->variationType->slug;
             if (!isset($grouped[$typeSlug])) {
                 $grouped[$typeSlug] = [

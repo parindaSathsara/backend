@@ -104,6 +104,69 @@ class AuthController extends Controller
     }
 
     /**
+     * Login with Google
+     */
+    public function googleLogin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+            'email' => 'required|email',
+            'name' => 'required|string',
+            'photo' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Check if user exists
+        $user = User::where('email', $request->email)->first();
+
+        // Get customer role
+        $customerRole = Role::where('name', 'customer')->first();
+
+        if (!$customerRole) {
+            return response()->json([
+                'message' => 'Customer role not found. Please run database seeders.'
+            ], 500);
+        }
+
+        // Create user if doesn't exist
+        if (!$user) {
+            $nameParts = explode(' ', $request->name, 2);
+            $firstName = $nameParts[0];
+            $lastName = $nameParts[1] ?? '';
+
+            $user = User::create([
+                'role_id' => $customerRole->id,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $request->email,
+                'password' => Hash::make(\Str::random(32)), // Random password for OAuth users
+                'google_id' => $request->token, // Store Google ID for reference
+                'is_active' => true,
+            ]);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'Your account has been deactivated'
+            ], 403);
+        }
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Google login successful',
+            'user' => $user->load('role'),
+            'token' => $token
+        ]);
+    }
+
+    /**
      * Logout user
      */
     public function logout(Request $request)

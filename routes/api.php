@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Admin\AdminSettingsController;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/google', [AuthController::class, 'googleLogin']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
@@ -66,6 +67,18 @@ Route::get('/shipping-settings', function () {
         'shipping_rate_per_kg' => \App\Models\Setting::get('shipping_rate_per_kg', 500),
         'free_shipping_threshold' => \App\Models\Setting::get('free_shipping_threshold', 0),
         'default_weight' => \App\Models\Setting::get('default_weight', 0.5),
+    ]);
+});
+
+// Bank details (public - for checkout)
+Route::get('/payment/bank-details', function () {
+    return response()->json([
+        'bank_name' => \App\Models\Setting::get('bank_name', 'Bank of Ceylon'),
+        'account_number' => \App\Models\Setting::get('bank_account_number', ''),
+        'account_name' => \App\Models\Setting::get('bank_account_name', 'SH Womens Fashion (Pvt) Ltd'),
+        'branch' => \App\Models\Setting::get('bank_branch', ''),
+        'branch_code' => \App\Models\Setting::get('bank_branch_code', ''),
+        'swift_code' => \App\Models\Setting::get('bank_swift_code', ''),
     ]);
 });
 
@@ -216,5 +229,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('settings', [AdminSettingsController::class, 'index']);
     Route::get('settings/shipping', [AdminSettingsController::class, 'getShippingSettings']);
     Route::put('settings/shipping', [AdminSettingsController::class, 'updateShippingSettings']);
+    Route::get('settings/bank', [AdminSettingsController::class, 'getBankSettings']);
+    Route::put('settings/bank', [AdminSettingsController::class, 'updateBankSettings']);
     Route::put('settings/{key}', [AdminSettingsController::class, 'update']);
 });

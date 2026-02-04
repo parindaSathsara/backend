@@ -58,17 +58,106 @@ class Cart extends Model
         // No tax - prices are all-inclusive
         $this->tax = 0;
         
-        // Shipping is calculated separately based on weight (LKR 500/kg)
-        // Set to 0 here as it will be calculated at checkout
-        $this->shipping = 0;
+        // Calculate shipping based on weight
+        $this->shipping = $this->calculateShipping();
         
         // Apply coupon discount if exists
         $this->discount = $this->calculateDiscount();
         
-        // Calculate total (subtotal minus discount, shipping added at checkout)
-        $this->total = $this->subtotal - $this->discount;
+        // Calculate total (subtotal minus discount plus shipping)
+        $this->total = $this->subtotal - $this->discount + $this->shipping;
         
         $this->save();
+    }
+
+    /**
+     * Calculate shipping based on total weight of items
+     */
+    public function calculateShipping()
+    {
+        $shippingRatePerKg = Setting::get('shipping_rate_per_kg', 500);
+        $freeShippingThreshold = Setting::get('free_shipping_threshold', 0);
+        $defaultWeight = Setting::get('default_weight', 0.5);
+        
+        // Check if free shipping applies
+        if ($freeShippingThreshold > 0 && $this->subtotal >= $freeShippingThreshold) {
+            return 0;
+        }
+        
+        // Calculate total weight
+        $totalWeight = 0;
+        foreach ($this->items as $item) {
+            $itemWeight = $defaultWeight; // Default weight
+            
+            if ($item->item_type === 'product' && $item->product) {
+                $itemWeight = $item->product->weight ?? $defaultWeight;
+            } elseif ($item->item_type === 'album' && $item->album) {
+                // For albums, calculate weight from all products in the album
+                $albumWeight = 0;
+                foreach ($item->album->products as $product) {
+                    $albumWeight += ($product->weight ?? $defaultWeight);
+                }
+                $itemWeight = $albumWeight > 0 ? $albumWeight : $defaultWeight;
+            }
+            
+            $totalWeight += $itemWeight * $item->quantity;
+        }
+        
+        // Calculate shipping cost (minimum 1 kg)
+        $chargeableWeight = max($totalWeight, 0.1);
+        $shippingCost = ceil($chargeableWeight) * $shippingRatePerKg;
+        
+        return $shippingCost;
+    }
+
+    /**
+     * Get shipping calculation breakdown
+     */
+    public function getShippingBreakdown()
+    {
+        $shippingRatePerKg = Setting::get('shipping_rate_per_kg', 500);
+        $freeShippingThreshold = Setting::get('free_shipping_threshold', 0);
+        $defaultWeight = Setting::get('default_weight', 0.5);
+        
+        $totalWeight = 0;
+        $itemWeights = [];
+        
+        foreach ($this->items as $item) {
+            $itemWeight = $defaultWeight;
+            
+            if ($item->item_type === 'product' && $item->product) {
+                $itemWeight = $item->product->weight ?? $defaultWeight;
+            } elseif ($item->item_type === 'album' && $item->album) {
+                $albumWeight = 0;
+                foreach ($item->album->products as $product) {
+                    $albumWeight += ($product->weight ?? $defaultWeight);
+                }
+                $itemWeight = $albumWeight > 0 ? $albumWeight : $defaultWeight;
+            }
+            
+            $lineWeight = $itemWeight * $item->quantity;
+            $totalWeight += $lineWeight;
+            
+            $itemWeights[] = [
+                'name' => $item->name,
+                'unit_weight' => $itemWeight,
+                'quantity' => $item->quantity,
+                'total_weight' => $lineWeight,
+            ];
+        }
+        
+        $isFreeShipping = $freeShippingThreshold > 0 && $this->subtotal >= $freeShippingThreshold;
+        $chargeableWeight = max($totalWeight, 0.1);
+        
+        return [
+            'items' => $itemWeights,
+            'total_weight' => $totalWeight,
+            'chargeable_weight' => ceil($chargeableWeight),
+            'rate_per_kg' => $shippingRatePerKg,
+            'free_shipping_threshold' => $freeShippingThreshold,
+            'is_free_shipping' => $isFreeShipping,
+            'shipping_cost' => $isFreeShipping ? 0 : ceil($chargeableWeight) * $shippingRatePerKg,
+        ];
     }
 
     /**

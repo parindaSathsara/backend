@@ -72,6 +72,62 @@ class AdminSettingsController extends Controller
     }
 
     /**
+     * Get bank account settings
+     */
+    public function getBankSettings()
+    {
+        return response()->json([
+            'bank_name' => Setting::get('bank_name', 'Bank of Ceylon'),
+            'account_number' => Setting::get('bank_account_number', ''),
+            'account_name' => Setting::get('bank_account_name', 'SH Womens Fashion (Pvt) Ltd'),
+            'branch' => Setting::get('bank_branch', ''),
+            'branch_code' => Setting::get('bank_branch_code', ''),
+            'swift_code' => Setting::get('bank_swift_code', ''),
+        ]);
+    }
+
+    /**
+     * Update bank account settings
+     */
+    public function updateBankSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_name' => 'required|string|max:255',
+            'account_number' => 'required|string|max:50',
+            'account_name' => 'required|string|max:255',
+            'branch' => 'nullable|string|max:255',
+            'branch_code' => 'nullable|string|max:20',
+            'swift_code' => 'nullable|string|max:20',
+        ]);
+
+        Setting::set('bank_name', $validated['bank_name'], 'string', 'payment');
+        Setting::set('bank_account_number', $validated['account_number'], 'string', 'payment');
+        Setting::set('bank_account_name', $validated['account_name'], 'string', 'payment');
+        
+        if (isset($validated['branch'])) {
+            Setting::set('bank_branch', $validated['branch'], 'string', 'payment');
+        }
+        if (isset($validated['branch_code'])) {
+            Setting::set('bank_branch_code', $validated['branch_code'], 'string', 'payment');
+        }
+        if (isset($validated['swift_code'])) {
+            Setting::set('bank_swift_code', $validated['swift_code'], 'string', 'payment');
+        }
+
+        return response()->json([
+            'message' => 'Bank settings updated successfully',
+            'settings' => [
+                'bank_name' => Setting::get('bank_name'),
+                'account_number' => Setting::get('bank_account_number'),
+                'account_name' => Setting::get('bank_account_name'),
+                'branch' => Setting::get('bank_branch'),
+                'branch_code' => Setting::get('bank_branch_code'),
+                'swift_code' => Setting::get('bank_swift_code'),
+            ]
+        ]);
+    }
+
+    /**
      * Update a single setting
      */
     public function update(Request $request, $key)
